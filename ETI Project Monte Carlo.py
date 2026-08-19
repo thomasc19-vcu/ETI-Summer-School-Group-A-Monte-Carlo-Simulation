@@ -1,40 +1,69 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import math
 
-# material parameter design
+# physical parameters
 
-ThalfLife = 12.33 # years
-hWTemp = 
-fuelTemp = 
-airTemp = 
-reacPress =
+# time data
+
+ThalfLife = 12.33 * 365 # years -> days
+rodTime = 365 # days
+
+# temperature data
+
+hWTemp = 309 # degrees C
+fuelTemp = 700 # degrees C
+airTemp = 30
+
+# pressure data
+
+reacPress = 9.99 MPa
 airPress = 
+
+# dimensional data
+
 rodRadius = 
 airLen = 
 hWLen = 
 fuelLen = 
+zirThickness = 
+
+# tritium production data
+
 TProduced = 400 # grams
 TRodSimMol = 0.001 # mol
 TmolarMass = 3.016049 # grams/mol
-rodTime = 1 # year
+
+# permeation data
+
 porosity =
 permeability =
-zirThickness = 
+
+# detector data
+
 detectorEfficiency = 46.6
 detectorEfficiencyStDev = 0.2 / 2
 
+# simulation parameters
+
+testSegments = math.floor(TProduced / (TRodSimMol * TmolarMass))
 sims = 30
 
 # monte carlo implementation, thank you Gracie!!!
+
+# calculation of decay probabilities
 
 def decayProb(halfLife, dt):
     """Calculates decay probability p over time step dt."""
     decayRate = np.log(2) / halfLife
     return 1 - np.exp(-decayRate * dt)
 
+# calculation of permeation probabilities
+
 def permProb():
 
+# nonte carlo function
 
 def monteCarlo(N0, halfLife, tTot, dt):
     """Simulates decay of N_0 particles over total time t_tot in steps of dt."""
@@ -67,10 +96,10 @@ detectAvg = 0
 
 fig, (noDetect, detect) = plt.subplots(1, 2, figsize=(10, 4))
 
-# run loss sims, running loss on mol rather than atoms, cause thats way too many
+# run loss sims, running loss on mol rather than atoms, cause thats way too many atoms
 
 for i in range(sims):
-    vals, detectVals, t = monteCarlo()
+    vals, detectVals, t = monteCarlo(testSegments, ThalfLife, rodTime, 1)
     vals = vals * TmolarMass  # convert to grams  
     noDetect.plot(t, vals)
     noDetectAvg = noDetectAvg + vals[TRodSimMol]
