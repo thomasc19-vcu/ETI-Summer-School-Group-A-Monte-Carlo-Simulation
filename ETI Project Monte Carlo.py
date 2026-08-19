@@ -13,22 +13,16 @@ rodTime = 365 # days
 # temperature data
 
 hWTemp = 309 # degrees C
-fuelTemp = 700 # degrees C
-airTemp = 30
 
 # pressure data
 
-reacPress = 9.99 #MPa
-airPress = 7 #kPa documentation suggests that 7-14 MPa is 
-             #normal pressure for air within the building. Everything is kept under slight vaccum
+reacPress = 9.99 # MPa
 
 # dimensional data
 
-rodRadius = 0
-airLen = 0
-hWLen = 0
-fuelLen = 0
-zirThickness = 0
+rodRadius = 
+rodLength = 
+cladThickness = 
 
 # tritium production data
 
@@ -38,8 +32,8 @@ TmolarMass = 3.016049 # grams/mol
 
 # permeation data
 
-porosity = 0
-permeability = 0
+porosity =
+permeability =
 
 # detector data
 
@@ -62,8 +56,7 @@ def decayProb(halfLife, dt):
 
 # calculation of permeation probabilities
 
-def permProb(porosity, permeability):
-    return porosity * permeability
+def permProb():
 
 # nonte carlo function
 
@@ -77,7 +70,7 @@ def monteCarlo(N0, halfLife, tTot, dt):
     NVals[0] = N
     NValsDetect[0] = N
     lambdaD = decayProb(halfLife, dt)
-    lambdaP = permProb(porosity, permeability)
+    lambdaP = permProb()
     lambdaDet = detectorEfficiency
 
     for t in range(1, len(timeGrid)):
@@ -101,13 +94,13 @@ fig, (noDetect, detect) = plt.subplots(1, 2, figsize=(10, 4))
 # run loss sims, running loss on mol rather than atoms, cause thats way too many atoms
 
 for i in range(sims):
-    vals, t = monteCarlo(testSegments, ThalfLife, rodTime, 1)
+    vals, detectVals, t = monteCarlo(testSegments, ThalfLife, rodTime, 1)
     vals = vals * TmolarMass  # convert to grams  
     noDetect.plot(t, vals)
-    noDetectAvg = noDetectAvg + vals[int(TRodSimMol)] #Hoow does this work because TRodSimMol is a decimal?
+    noDetectAvg = noDetectAvg + vals[TRodSimMol]
 
     detectVals = detectVals * TmolarMass  # convert to grams  
-    #detectAvg = detectAvg + detectVals[int(TRodSimMol)] #How does this work because TRodSimMol is a decimal and detectVals isn't an array?
+    detectAvg = detectAvg + detectVals[TRodSimMol]
 
 # generate statistical data
 
