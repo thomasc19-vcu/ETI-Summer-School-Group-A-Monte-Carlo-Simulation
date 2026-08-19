@@ -10,42 +10,30 @@ import math
 ThalfLife = 12.33 * 365 # years -> days
 rodTime = 365 # days
 
-# temperature data
-
-hWTemp = 309 # degrees C
-
-# pressure data
-
-reacPress = 9.99 # MPa
-
-# dimensional data
-
-rodRadius = 
-rodLength = 
-cladThickness = 
-
 # tritium production data
 
 TProduced = 400 # grams
-TRodSimMol = 0.001 # mol
+TRodSimSeg = 0.001 
 TmolarMass = 3.016049 # grams/mol
 
 # permeation data
 
-porosity =
-permeability =
+perm = 0.000436 # grams/day
+permVariance = 9.17 * 10**(-5) # +- grams/day
 
 # detector data
 
-detectorEfficiency = 46.6
-detectorEfficiencyStDev = 0.2 / 2
+detectorEfficiency = 0.466
+detectorEfficiencyStDev = 0.002 / 2
 
 # simulation parameters
 
-testSegments = math.floor(TProduced / (TRodSimMol * TmolarMass))
-sims = 30
+testSegments = math.floor(TProduced / (TRodSimSeg * TmolarMass)) # number of test segments, translates roughly to 0.001 mol per segment
+permSeg = perm * testSegments / TProduced # converts permeation rate to segments
+permVarSeg = permVariance * testSegments / TProduced # converts permeation variance to segments
+sims = 100
 
-# monte carlo implementation, thank you Gracie!!!
+# monte carlo implementation, thank you ETI staff!!!
 
 # calculation of decay probabilities
 
@@ -54,86 +42,80 @@ def decayProb(halfLife, dt):
     decayRate = np.log(2) / halfLife
     return 1 - np.exp(-decayRate * dt)
 
-# calculation of permeation probabilities
+# monte carlo function
 
-def permProb():
+def decayProb(halfLife, dt):
+    """Calculates decay probability p over time step dt."""
+    decay_rate = np.log(2) / halfLife
+    return 1 - np.exp(-decay_rate * dt)
 
-# nonte carlo function
-
-def monteCarlo(N0, halfLife, tTot, dt):
+def monteCarlo(N_0, halfLife, t_tot, dt):
     """Simulates decay of N_0 particles over total time t_tot in steps of dt."""
-    timeGrid = np.arange(0, tTot + dt, dt)
-    NVals = np.zeros_like(timeGrid, dtype=int)
-    NValsDetect = NVals
+   
+    time_grid = np.arange(0, t_tot + dt, dt)
+    N_vals = np.zeros_like(time_grid, dtype=int)
 
-    N = N0
-    NVals[0] = N
-    NValsDetect[0] = N
+    N = N_0
+    N_vals[0] = N
+    
     lambdaD = decayProb(halfLife, dt)
-    lambdaP = permProb()
-    lambdaDet = detectorEfficiency
 
-    for t in range(1, len(timeGrid)):
+    for t in range(1, len(time_grid)):
         if N > 0:
             # Generate N random floats between 0 and 1; check against decay probability
             pDecayed = np.random.rand(N) < lambdaD
-            pPerm = np.random.rand(N) < lambdaP
-            pDetect = np.random.rand(N) < lambdaDet
+            perm = permSeg + np.random.uniform(-permVarSeg, permVarSeg)
 
-            N = N - np.sum(pDecayed) - np.sum(pPerm)
-        NVals[t] = N
-        NValsDetect[t] = N - np.sum(pDetect)
+            N = math.floor(N - np.sum(pDecayed) - perm)
 
-    return NVals, timeGrid
+        N_vals[t] = N
+
+    return N_vals, time_grid
 
 noDetectAvg = 0
-detectAvg = 0
+#detectAvg = 0
 
-fig, (noDetect, detect) = plt.subplots(1, 2, figsize=(10, 4))
+plt.figure()
 
 # run loss sims, running loss on mol rather than atoms, cause thats way too many atoms
 
 for i in range(sims):
-    vals, detectVals, t = monteCarlo(testSegments, ThalfLife, rodTime, 1)
-    vals = vals * TmolarMass  # convert to grams  
-    noDetect.plot(t, vals)
-    noDetectAvg = noDetectAvg + vals[TRodSimMol]
+    vals, t = monteCarlo(testSegments, ThalfLife, rodTime, 1) 
 
-    detectVals = detectVals * TmolarMass  # convert to grams  
-    detectAvg = detectAvg + detectVals[TRodSimMol]
+    plt.plot(t, TProduced - (vals * TProduced / testSegments))    
+    
+    noDetectAvg = noDetectAvg + vals[rodTime]
+ 
+    #detectAvg = detectAvg + detectVals[rodTime]
 
 # generate statistical data
 
-noDetectAvg = noDetectAvg / sims
+noDetectAvg = noDetectAvg * TProduced / testSegments # convert from segments to grams
+noDetectAvg = TProduced - (noDetectAvg / sims) # find amount lost
 noDetectStdev = np.sqrt(noDetectAvg)
 
-detectAvg = detectAvg / sims
-detectStdev = np.sqrt(detectAvg)
+#detectAvg = detectAvg / sims
+#detectStdev = np.sqrt(detectAvg)
 
 # report results
 
-print("Average Lost Tritium (No Detector): " + str(noDetectAvg) + "\nStandard Deviation (No Detector): " + str(noDetectStdev))
-print("\n\nAverage Lost Tritium (With Detector): " + str(detectAvg) + "\nStandard Deviation (With Detector): " + str(detectStdev))
+print("\nAverage Lost Tritium (No Detector): " + str(noDetectAvg) + "g\nStandard Deviation (No Detector): " + str(noDetectStdev) + "g\nUncertainty (No Detector, 95% Confidence Interval): +-" + str(noDetectStdev * 2) + "g\n")
+# print("\n\nAverage Lost Tritium (With Detector): " + str(detectAvg) + "\nStandard Deviation (With Detector): " + str(detectStdev))
 
 # determine hiding space between detected and simulated, propagating uncertainty according to sqrt(sigmaA^2 + sigmaB^2)
 
-print("\n\nDifference Between Detected and Simulated: " + str(noDetectAvg - detectAvg) + "\nStandard Deviation (With Detector): " + str(np.sqrt(detectStdev^2 + noDetectStdev^2)))
-print("\n\nEfficiency Scaled Estimate: " + str(detectAvg / detectorEfficiency) + "\nStandard Deviation (Scaled): " + str(np.sqrt(detectStdev^2 + detectorEfficiencyStDev^2)))
-print("\n\nDifference Between Scaled Detected and Simulated: " + str(noDetectAvg - (detectAvg / detectorEfficiency)) + "\nStandard Deviation (Scaled): " + str(np.sqrt(detectStdev^2 + noDetectStdev^2 + noDetectStdev^2)))
-print("\nAverage Unaccounted For Tritium: " + str(noDetectAvg - (detectAvg / detectorEfficiency)) + " +- " + str(np.sqrt(detectStdev^2 + noDetectStdev^2 + noDetectStdev^2) * 2) + " (95 percent confidence)")
+# print("\n\nDifference Between Detected and Simulated: " + str(noDetectAvg - detectAvg) + "\nStandard Deviation (With Detector): " + str(np.sqrt(detectStdev**2 + noDetectStdev**2)))
+# print("\n\nEfficiency Scaled Estimate: " + str(detectAvg / detectorEfficiency) + "\nStandard Deviation (Scaled): " + str(np.sqrt(detectStdev**2 + detectorEfficiencyStDev**2)))
+# print("\n\nDifference Between Scaled Detected and Simulated: " + str(noDetectAvg - (detectAvg / detectorEfficiency)) + "\nStandard Deviation (Scaled): " + str(np.sqrt(detectStdev**2 + noDetectStdev**2 + noDetectStdev**2)))
+# print("\nAverage Unaccounted For Tritium: " + str(noDetectAvg - (detectAvg / detectorEfficiency)) + " +- " + str(np.sqrt(detectStdev**2 + noDetectStdev**2 + noDetectStdev**2) * 2) + " (95 percent confidence)\n")
 
 # draw plots
 
-noDetect.title("Loss Simulations (No Detector)")
-noDetect.xlabel("Time")
-noDetect.ylabel("Remaining Tritium")
+plt.title("Loss Simulations (No Detector)")
+plt.xlabel("Time (d)")
+plt.ylabel("Lost Tritium (g)")
 
-noDetect.title("Loss Simulations (Detector)")
-noDetect.xlabel("Time")
-noDetect.ylabel("Remaining Tritium")
-
-plt.tight_layout
-plt.show
+plt.show()
 
 
 
