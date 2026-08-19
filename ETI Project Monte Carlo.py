@@ -14,8 +14,9 @@ rodRadius =
 airLen = 
 hWLen = 
 fuelLen = 
+TProduced = 400 # grams
 TRodSimMol = 0.001 # mol
-TmolarMass = 3.016049 # g/mol
+TmolarMass = 3.016049 # grams/mol
 rodTime = 1 # year
 porosity =
 permeability =
@@ -66,18 +67,16 @@ detectAvg = 0
 
 fig, (noDetect, detect) = plt.subplots(1, 2, figsize=(10, 4))
 
-# run  loss sims
+# run loss sims, running loss on mol rather than atoms, cause thats way too many
 
 for i in range(sims):
     vals, detectVals, t = monteCarlo()
-    vals = vals * molarMass / (6.02 * 10**23) # convert to grams  
-    vals = vals * multFactor # convert to total grams in all rods
+    vals = vals * TmolarMass  # convert to grams  
     noDetect.plot(t, vals)
-    noDetectAvg = noDetectAvg + vals[TRodSimAtoms]
+    noDetectAvg = noDetectAvg + vals[TRodSimMol]
 
-    detectVals = detectVals * molarMass / (6.02 * 10**23) # convert to grams  
-    detectVals = detectVals * multFactor # convert to total grams in all rods
-    detectAvg = detectAvg + detectVals[TRodSimAtoms]
+    detectVals = detectVals * TmolarMass  # convert to grams  
+    detectAvg = detectAvg + detectVals[TRodSimMol]
 
 # generate statistical data
 
