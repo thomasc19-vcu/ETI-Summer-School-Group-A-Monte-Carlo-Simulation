@@ -23,7 +23,7 @@ TmolarMass = 3.016049 # grams/mol
 # permeation data
 
 perm = 0.000436 # grams/day
-permVariance = 9.17 * 10**(-5) # +- grams/day
+permUncertainty = 9.17 * 10**(-5) # +- grams/day
 
 # detector data
 
@@ -34,7 +34,7 @@ detectorEfficiencyStDev = 0.002 / 2
 
 testSegments = math.floor(TProduced / (TRodSimSeg * TmolarMass)) # number of test segments, translates roughly to 0.001 mol per segment
 permSeg = perm * testSegments / TProduced # converts permeation rate to segments
-permVarSeg = permVariance * testSegments / TProduced # converts permeation variance to segments
+permUncertaintySeg = permUncertainty * testSegments / TProduced # converts permeation variance to segments
 sims = 1000
 
 # monte carlo implementation, thank you ETI staff!!!
@@ -66,11 +66,11 @@ def monteCarlo(N0, halfLife, t, dt):
             # generates N random floats between 0 and 1 then checks against decay probability, also calculates the amount permeated through target walls
 
             pDecayed = np.random.rand(N) < lambdaD
-            perm = permSeg + np.random.uniform(-permVarSeg, permVarSeg)
+            perm = permSeg + np.random.uniform(-permUncertaintySeg, permUncertaintySeg)
 
             # subtracts decayed segments and permeated segments from total remaning tritium
 
-            N = math.floor(N - np.sum(pDecayed) - perm)
+            N = round(N - np.sum(pDecayed) - perm)
 
         N_vals[t] = N
 
@@ -91,14 +91,25 @@ for i in range(sims):
  
 # generate statistical data
 
-avg = sum(finalValues) / sims# find average
-stdev = np.std(finalValues)
+avg = sum(finalValues) / sims # find average
+stdev = np.std(finalValues) # find standard deviation
 
-endTime = time.perf_counter()
+# calculate and plot theoretical loss
+
+theoretical = TProduced - (TProduced * np.exp(-np.log(2) * t / ThalfLife) + perm * t)
+plt.plot(t, theoretical, linestyle = "dashed", color = "black", label = "Theoretical Value")
 
 # report results and simulation time
 
-print("\nAverage Lost Tritium: " + str(avg) + " g\nStandard Deviation: " + str(stdev) + " g\nUncertainty (95% Confidence Interval): +- " + str(stdev * 2) + " g\nSimulation Time: " + str(endTime - startTime) + " s\n")
+endTime = time.perf_counter()
+
+print("\nSimulated Average Lost Tritium: " + str(avg) + " g")
+print("Standard Deviation: " + str(stdev) + " g") 
+print("Uncertainty (95% Confidence Interval): +- " + str(stdev * 2) + " g")
+print("Theoretical Lost Tritium: " + str(theoretical[rodTime]) + " g")
+print("Difference Between Simulated Average and Theoretical Model: " + str(avg - theoretical[rodTime]) + " g")
+print("Theoretical value is within uncertainty? " + str(abs(avg - theoretical[rodTime]) <= (stdev * 2)))
+print("Simulation Time: " + str(endTime - startTime) + " s\n")
 
 # draw plot
 
@@ -107,6 +118,7 @@ plt.xlabel("Time (d)")
 plt.ylabel("Lost Tritium (g)")
 plt.grid(True)
 
+plt.legend()
 plt.show()
 
 
